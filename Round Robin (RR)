@@ -1,0 +1,116 @@
+import random
+from collections import deque
+
+
+# Process class to store process information
+class Process:
+    def __init__(self, pid, arrival_time, burst_time):
+        self.pid = pid
+        self.arrival_time = arrival_time
+        self.burst_time = burst_time
+        self.remaining_time = burst_time
+        self.start_time = -1
+        self.completion_time = 0
+        self.turnaround_time = 0
+        self.waiting_time = 0
+
+
+# Generate random processes
+def generate_processes(num_processes):
+    processes = []
+    for i in range(num_processes):
+        arrival_time = random.randint(0, 20)  # Random arrival time between 0 and 20 ms
+        burst_time = random.randint(1, 10)  # Random burst time between 1 and 10 ms
+        processes.append(Process(i + 1, arrival_time, burst_time))
+    return processes
+
+
+# Round Robin Scheduling (Preemptive by Design)
+def round_robin(processes, time_quantum):
+    processes.sort(key=lambda p: p.arrival_time)  # Sort by arrival time
+    ready_queue = deque()
+    current_time = 0
+    completed_processes = []
+    current_process = None
+    total_processes = len(processes)
+    time_quantum = time_quantum
+
+    # Track processes that have arrived and are in the ready queue
+    i = 0  # Pointer to the next process to arrive
+    while len(completed_processes) < total_processes:
+        # Add newly arrived processes to the ready queue
+        while i < total_processes and processes[i].arrival_time <= current_time:
+            ready_queue.append(processes[i])
+            i += 1
+
+        if current_process:  # Check if a process is running
+            if current_process.remaining_time > 0:
+                ready_queue.append(current_process)  # Add it back to the end of the queue
+
+        if ready_queue:
+            current_process = ready_queue.popleft()  # Fetch the next process
+
+            if current_process.start_time == -1:
+                current_process.start_time = current_time
+
+            # Run the process for the duration of the time quantum or its remaining time
+            execution_time = min(time_quantum, current_process.remaining_time)
+            current_process.remaining_time -= execution_time
+            current_time += execution_time
+
+            if current_process.remaining_time == 0:  # Process completes
+                current_process.completion_time = current_time
+                current_process.turnaround_time = current_process.completion_time - current_process.arrival_time
+                current_process.waiting_time = current_process.turnaround_time - current_process.burst_time
+                completed_processes.append(current_process)
+                current_process = None
+        else:
+            # If no process is ready, increment time
+            current_time += 1
+
+    return completed_processes
+
+
+# Calculate Performance Metrics
+def calculate_metrics(processes):
+    total_turnaround_time = sum([p.turnaround_time for p in processes])
+    total_waiting_time = sum([p.waiting_time for p in processes])
+    current_time = max([p.completion_time for p in processes])
+
+    avg_turnaround_time = total_turnaround_time / len(processes)
+    avg_waiting_time = total_waiting_time / len(processes)
+    cpu_utilization = (sum([p.burst_time for p in processes]) / current_time) * 100
+    throughput = len(processes) / current_time
+
+    return avg_turnaround_time, avg_waiting_time, cpu_utilization, throughput
+
+
+# Display the process details and performance metrics
+def display_results(processes, title):
+    print(f"\n{title}")
+    print(f"{'PID':<5}{'Arrival':<10}{'Burst':<10}{'Start':<10}{'Completion':<15}{'Turnaround':<15}{'Waiting':<10}")
+    for process in processes:
+        print(
+            f"{process.pid:<5}{process.arrival_time:<10}{process.burst_time:<10}{process.start_time:<10}{process.completion_time:<15}{process.turnaround_time:<15}{process.waiting_time:<10}")
+
+    avg_turnaround_time, avg_waiting_time, cpu_utilization, throughput = calculate_metrics(processes)
+    print(f"\nPerformance Metrics:")
+    print(f"Average Turnaround Time: {avg_turnaround_time:.2f} ms")
+    print(f"Average Waiting Time: {avg_waiting_time:.2f} ms")
+    print(f"CPU Utilization: {cpu_utilization:.2f}%")
+    print(f"Throughput: {throughput:.2f} processes/ms")
+
+
+# Main function to simulate scheduling algorithms
+def main():
+    num_processes = 20
+    time_quantum = 8  # Set the time quantum for Round Robin
+    processes = generate_processes(num_processes)
+
+    # Round Robin Scheduling
+    rr_processes = round_robin(processes.copy(), time_quantum)
+    display_results(rr_processes, f"Round Robin Scheduling (Time Quantum = {time_quantum} ms)")
+
+
+if __name__ == "__main__":
+    main()
